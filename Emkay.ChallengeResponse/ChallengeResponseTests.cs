@@ -14,7 +14,7 @@ namespace Emkay.ChallengeResponse
     {
         public string Challenge = Guid.NewGuid().ToString();
 
-        public bool Authenticated(string challenge, string response)
+        public bool Authenticate(string challenge, string response)
         {
             var r = CalculateResponse(challenge, Shared.Secret);
             return string.Equals(response, r);
@@ -37,23 +37,141 @@ namespace Emkay.ChallengeResponse
         }
     }
 
-    class Client : Peer {}
+    class Bob : Peer {}
 
-    class Server : Peer {}
+    class Alice : Peer {}
 
     [TestFixture]
     public class ChallengeResponseTests
     {
         [Test]
-        public void Client_authenticates_via_challenge_response()
+        public void Authenticate_via_challenge_response()
         {
-            var s = new Server();
-            var c = new Client();
+            var alice = new Alice();
+            var bob = new Bob();
 
-            var response = c.CalculateResponse(s.Challenge);
-            var authenticated = s.Authenticated(s.Challenge, response);
+            var response = bob.CalculateResponse(alice.Challenge);
+            var authenticated = alice.Authenticate(alice.Challenge, response);
 
             Assert.IsTrue(authenticated, "Not authenticated!");
+        }
+    }
+
+    class Server : Peer
+    {
+        public bool CanElevate(string id)
+        {
+            return string.Equals(id, "1");
+        }
+
+        public bool CanElevate(string challenge, string response, string id)
+        {
+            return Authenticate(challenge, response) && CanElevate(id);
+        }
+    }
+
+    class Client : Peer
+    {
+        public string Id { get; private set; }
+
+        public Client(string id = "1")
+        {
+            Id = id;
+        }
+    }
+
+    class Proxy
+    {
+        public bool CanElevate(string id)
+        {
+            return true;
+        }
+
+        public string Challenge
+        {
+            get { return "foobar"; }
+        }
+
+        public bool CanElevate(string challenge, string response, string id)
+        {
+            return true;
+        }
+
+        public string CalculateResponse(string challenge)
+        {
+            return "Something";
+        }
+    }
+
+    [TestFixture]
+    public class ElevationTests
+    {
+        [TestCase("1", ExpectedResult = true)]
+        [TestCase("2", ExpectedResult = false)]
+        public bool Ask_server_if_client_can_elevate(string clientId)
+        {
+            var server = new Server();
+            var client = new Client(clientId);
+            return server.CanElevate(client.Id);
+        }
+
+        [TestCase("1", ExpectedResult = true)]
+        [TestCase("2", ExpectedResult = true)]
+        public bool Ask_proxy_if_client_can_elevate(string clientId)
+        {
+            var proxy = new Proxy();
+            var client = new Client(clientId);
+            return proxy.CanElevate(client.Id);
+        }
+
+        [TestCase("1", ExpectedResult = true)]
+        [TestCase("2", ExpectedResult = false)]
+        public bool Ask_server_if_client_can_elevate_using_challenge_response(string clientId)
+        {
+            var server = new Server();
+            var client = new Client(clientId);
+
+            var response = client.CalculateResponse(server.Challenge);
+            return server.CanElevate(server.Challenge, response, client.Id);
+        }
+
+        [TestCase("1", ExpectedResult = true)]
+        [TestCase("2", ExpectedResult = true)]
+        public bool Ask_proxy_if_client_can_elevate_using_challenge_response(string clientId)
+        {
+            var proxy = new Proxy();
+            var client = new Client(clientId);
+
+            var response = client.CalculateResponse(proxy.Challenge);
+            return proxy.CanElevate(proxy.Challenge, response, client.Id);
+        }
+
+        [TestCase("1", ExpectedResult = true)]
+        [TestCase("2", ExpectedResult = false)]
+        public bool Ask_server_for_elevation_after_beeing_authenticated(string clientId)
+        {
+            var server = new Server();
+            var client = new Client(clientId);
+
+            var response = server.CalculateResponse(client.Challenge);            
+            Assert.IsTrue(client.Authenticate(client.Challenge, response), "Server is not authenticated!");
+            return server.CanElevate(client.Id);
+        }
+
+        [TestCase("1", ExpectedResult = true)]
+        [TestCase("2", ExpectedResult = true)]
+        [ExpectedException(typeof(InvalidOperationException))]
+        public bool Ask_proxy_for_elevation_after_beeing_authenticated(string clientId)
+        {
+            var proxy = new Proxy();
+            var client = new Client(clientId);
+
+            var response = proxy.CalculateResponse(client.Challenge);
+            
+            if (!client.Authenticate(client.Challenge, response))
+                throw new InvalidOperationException("Server is not authenticated!");
+
+            return proxy.CanElevate(client.Id);
         }
     }
 }
