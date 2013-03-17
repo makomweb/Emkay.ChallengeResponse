@@ -43,7 +43,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ChallengeResponseTests.cs" />
+    <Compile Include="EvalDoer.cs" />
+    <Compile Include="IPeer.cs" />
+    <Compile Include="PkiPeer.cs" />
+    <Compile Include="SharedSecretPeer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="PkiTests.cs" />
+    <Compile Include="SharedSecretTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

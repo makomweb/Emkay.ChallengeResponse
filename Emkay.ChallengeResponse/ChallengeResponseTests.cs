@@ -154,7 +154,7 @@ namespace Emkay.ChallengeResponse
             var client = new Client(clientId);
 
             var response = server.CalculateResponse(client.Challenge);            
-            Assert.IsTrue(client.Authenticate(client.Challenge, response), "Server is not authenticated!");
+            Assert.IsTrue(client.Authenticate(client.Challenge, response), "Bob is not authenticated!");
             return server.CanElevate(client.Id);
         }
 
@@ -169,7 +169,7 @@ namespace Emkay.ChallengeResponse
             var response = proxy.CalculateResponse(client.Challenge);
             
             if (!client.Authenticate(client.Challenge, response))
-                throw new InvalidOperationException("Server is not authenticated!");
+                throw new InvalidOperationException("Bob is not authenticated!");
 
             return proxy.CanElevate(client.Id);
         }
